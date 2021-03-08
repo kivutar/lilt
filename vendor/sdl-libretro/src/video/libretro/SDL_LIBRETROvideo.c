@@ -47,7 +47,6 @@
 #include "SDL_LIBRETROmouse_c.h"
 #include "SDL_LIBRETROkeyboard_c.h"
 
-#if 0
 /************************************
  * libretro implementation
  ************************************/
@@ -301,17 +300,17 @@ void retro_init(void)
 */
   	update_variables();
 
-	libretro_init_extra();
+	//libretro_init_extra();
 }
 
 void retro_deinit(void)
 { 
 
-    libretro_deinit_extra();
+    //libretro_deinit_extra();
 
-     auseg=-1;
+    pauseg=-1;
 
-        printf("Retro DeInit\n");
+    printf("Retro DeInit\n");
 }
 
 void retro_reset(void)
@@ -332,11 +331,10 @@ void retro_run(void)
       		update_variables(); 
 
 
-	libretro_do_logic(RPATH); 
-        video_cb(videoBuffer, retrow, retroh, retrow << 2);
-	libretro_do_switch(RPATH); 
+	//libretro_do_logic(RPATH); 
+    video_cb(videoBuffer, retrow, retroh, retrow << 2);
+	//libretro_do_switch(RPATH); 
 }
-#endif
 
 /* Initialization/Query functions */
 static int LIBRETRO_VideoInit(_THIS, SDL_PixelFormat *vformat);
