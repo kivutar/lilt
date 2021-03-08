@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include "SDL.h"
+#include <SDL.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
-#include "libtmt/tmt.h"
+#include "tmt.h"
 
 #define DEFAULT_TITLE "Lilt"
 
