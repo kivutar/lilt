@@ -16,7 +16,7 @@
 #define DEF_BG 0
 
 int term_w = 80;
-int term_h = 24; // vt52 was 24, but DOS machines were usually 25
+int term_h = 25; // vt52 was 24, but DOS machines were usually 25
 
 // Drawing position tweaks
 int tweakx = 0;
@@ -363,7 +363,6 @@ int libretro_init_extra()
   int opt_e_index = -1;
   char * title = DEFAULT_TITLE;
 
-  //char ** run_cmd = NULL;
   char * cshell = NULL;
 
   for (int i = 0; i < 16; i++)
@@ -399,7 +398,7 @@ int libretro_init_extra()
   if (!screen || !font || !vt) return 1;
 
   char ** run_cmd = calloc(6, sizeof(char *));
-  run_cmd[0] = "/usr/bin/top";
+  run_cmd[0] = "/Users/kivutar/Downloads/df_osx/df";
 
   if (!init_master("/Users/kivutar/lilt2/lilt", cshell, run_cmd)) return 2;
 

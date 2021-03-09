@@ -66,7 +66,7 @@ bool opt_analog;
 static bool firstcall=true;
 
 int retrow=560;
-int retroh=336;
+int retroh=350;
 
 int pauseg=0;
 
@@ -94,8 +94,11 @@ void libretro_audio_cb(int16_t left, int16_t right){
 
 short int libretro_input_state_cb(unsigned port,unsigned device,unsigned index,unsigned id){
 	return input_state_cb(port,device,index,id);
-} 
+}
 
+static void keyboard_cb(bool down, unsigned keycode, uint32_t character, uint16_t mod)
+{
+}
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -297,10 +300,9 @@ void retro_init(void)
 	};
 	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, &inputDescriptors);
 
-/*
     struct retro_keyboard_callback cbk = { keyboard_cb };
     environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cbk);
-*/
+
   	update_variables();
 
 	libretro_init_extra();
@@ -319,6 +321,8 @@ void retro_deinit(void)
 void retro_reset(void)
 {
 }
+
+
 #ifdef __LINUX__
 //unused need for sdl-1.2.15-libretro
 void libretro_setbuffer(void *pix,unsigned short int x,unsigned short int  y){
@@ -465,8 +469,8 @@ int LIBRETRO_VideoInit(_THIS, SDL_PixelFormat *vformat)
 
 	/* Determine the screen depth (use default 8-bit depth) */
 	/* we change this during the SDL_SetVideoMode implementation... */
-        vformat->BitsPerPixel = 32;
-        vformat->BytesPerPixel = 4;
+	vformat->BitsPerPixel = 32;
+	vformat->BytesPerPixel = 4;
 
 	vformat->Amask = 0xff000000;
 	vformat->Rmask = 0x00ff0000;
@@ -492,7 +496,7 @@ const static SDL_Rect
     RECT_720x576={ 0,0,720, 576 }, // 576p
     RECT_640x480={ 0,0,640, 480 },
     RECT_320x240={ 0,0,320, 240 },
-	RECT_560x336={ 0,0,560, 336 }
+	RECT_560x350={ 0,0,560, 350 }
 ;
 
 const static SDL_Rect *vid_modes[] = {
@@ -505,7 +509,7 @@ const static SDL_Rect *vid_modes[] = {
 	&RECT_720x576,
 	&RECT_640x480,
 	&RECT_320x240,
-	&RECT_560x336,
+	&RECT_560x350,
 	NULL
 };
 
@@ -555,7 +559,7 @@ SDL_Surface *LIBRETRO_SetVideoMode(_THIS, SDL_Surface *current,
 	current->pixels = this->hidden->buffer;
 	videoBuffer = this->hidden->buffer;
 
-	LIBRETRO_InitMouse(this);
+	//LIBRETRO_InitMouse(this);
 
 	/* We're done */
 	return(current);
