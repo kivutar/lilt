@@ -65,8 +65,8 @@ char retro_system_DATA[512];
 bool opt_analog;
 static bool firstcall=true;
 
-int retrow=768;
-int retroh=544;
+int retrow=560;
+int retroh=336;
 
 int pauseg=0;
 
@@ -84,6 +84,9 @@ void retro_set_audio_sample(retro_audio_sample_t cb) { audio_cb  =cb; }
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
 void retro_set_input_poll(retro_input_poll_t cb) { input_poll_cb = cb; }
 void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
+
+extern int libretro_init_extra();
+extern void libretro_do_logic();
 
 void libretro_audio_cb(int16_t left, int16_t right){
 	audio_cb(left,right);
@@ -300,7 +303,7 @@ void retro_init(void)
 */
   	update_variables();
 
-	//libretro_init_extra();
+	libretro_init_extra();
 }
 
 void retro_deinit(void)
@@ -331,7 +334,7 @@ void retro_run(void)
       		update_variables(); 
 
 
-	//libretro_do_logic(RPATH); 
+	libretro_do_logic(RPATH); 
     video_cb(videoBuffer, retrow, retroh, retrow << 2);
 	//libretro_do_switch(RPATH); 
 }
@@ -488,7 +491,8 @@ const static SDL_Rect
     RECT_720x480={ 0,0,720, 480 }, // 480p
     RECT_720x576={ 0,0,720, 576 }, // 576p
     RECT_640x480={ 0,0,640, 480 },
-    RECT_320x240={ 0,0,320, 240 }
+    RECT_320x240={ 0,0,320, 240 },
+	RECT_560x336={ 0,0,560, 336 }
 ;
 
 const static SDL_Rect *vid_modes[] = {
@@ -501,6 +505,7 @@ const static SDL_Rect *vid_modes[] = {
 	&RECT_720x576,
 	&RECT_640x480,
 	&RECT_320x240,
+	&RECT_560x336,
 	NULL
 };
 
@@ -510,7 +515,7 @@ SDL_Rect **LIBRETRO_ListModes(_THIS, SDL_PixelFormat *format, Uint32 flags)
 	switch(format->BitsPerPixel) {
 	
 	case 32:		
-		return (SDL_Rect **) -1;//&vid_modes;
+		return &vid_modes;
 	default:
 		return NULL;
 	}
@@ -548,7 +553,7 @@ SDL_Surface *LIBRETRO_SetVideoMode(_THIS, SDL_Surface *current,
 	this->hidden->h = current->h = height;
 	current->pitch = current->w * (bpp / 8);
 	current->pixels = this->hidden->buffer;
-//videoBuffer = this->hidden->buffer;
+	videoBuffer = this->hidden->buffer;
 
 	LIBRETRO_InitMouse(this);
 

@@ -16,7 +16,7 @@
 #define DEF_BG 0
 
 int term_w = 80;
-int term_h = 25; // vt52 was 24, but DOS machines were usually 25
+int term_h = 24; // vt52 was 24, but DOS machines were usually 25
 
 // Drawing position tweaks
 int tweakx = 0;
@@ -160,7 +160,7 @@ static void handle_sdl_keypress (SDL_KeyboardEvent * event)
 }
 
 
-static char * shell[] = {"/bin/sh", 0};
+static char * shell[] = {"/bin/zsh", 0};
 
 
 static bool init_master (char * argv0, char * cshell, char ** run_cmd)
@@ -186,17 +186,18 @@ static bool init_master (char * argv0, char * cshell, char ** run_cmd)
 
   char ** argv = calloc(6 + cmd_len, sizeof(char *));
   int a = 0;
-  argv[0] = argv0;
-  argv[1] = "-d";
-  if (asprintf(&argv[2], "%ix%i", term_w, term_h) == -1) return false;
-  argv[3] = "-s";
-  if (asprintf(&argv[4], "%i,%i", slave_fd, master_fd) == -1) return false;
-  for (int i = 0; i < cmd_len; i++) argv[5+i] = cmd[i];
+  argv[0] = "/bin/date";
+  // argv[1] = "-d";
+  // if (asprintf(&argv[2], "%ix%i", term_w, term_h) == -1) return false;
+  // argv[3] = "-s";
+  // if (asprintf(&argv[4], "%i,%i", slave_fd, master_fd) == -1) return false;
+  // for (int i = 0; i < cmd_len; i++) argv[5+i] = cmd[i];
 
   if (vfork() == 0)
   {
     execv(argv0, argv);
-    _exit(1); // Shouldn't be reached!
+    printf("ERROR\n");
+    return false; // Shouldn't be reached!
   }
 
   // Parent
@@ -353,62 +354,17 @@ static void handle_mouse (int sdlbutton, int scrx, int scry, int event)
 }
 
 
-int main (int argc, char * argv[])
+int libretro_init_extra()
 {
   int cursor_blink_delay = 0; // 0 is disable
-  bool resizable = true;
+  bool resizable = false;
 
   int opt_count = 0;
   int opt_e_index = -1;
   char * title = DEFAULT_TITLE;
-  int opt;
-  while ((opt = getopt(argc, argv, "+s:et:d:b:mM")) != -1)
-  {
-    opt_count++;
-    switch (opt)
-    {
-      case 's':
-        init_slave(optarg, argv+optind);
-        break;
-      case 'e':
-        opt_e_index = opt_count;
-        break;
-      case 't':
-        title = optarg;
-        break;
-      case 'b':
-        cursor_blink_delay = atoi(optarg);
-        if (cursor_blink_delay < 0) cursor_blink_delay = 0;
-        break;
-      case 'd':
-        set_dimensions(optarg);
-        break;
-      case 'f':
-        resizable = false;
-        break;
-      case 'm':
-        mouse_mode = 9;
-        break;
-      case 'M':
-        mouse_mode = 1006;
-        break;
-    }
-    if (opt_e_index != -1) break;
-  }
 
   char ** run_cmd = NULL;
   char * cshell = NULL;
-  if (opt_e_index == opt_count)
-  {
-    // Given a command to run
-    run_cmd = argv + opt_e_index + 1;
-  }
-  else if (optind == argc - 1)
-  {
-    cshell = argv[optind];
-  }
-  //printf("argc:%i optind:%i opt_count:%i opt_e_index:%i\n",
-  //       argc, optind, opt_count, opt_e_index);
 
   for (int i = 0; i < 16; i++)
   {
@@ -442,7 +398,7 @@ int main (int argc, char * argv[])
 
   if (!screen || !font || !vt) return 1;
 
-  if (!init_master(argv[0], cshell, run_cmd)) return 2;
+  if (!init_master("/bin/sh", cshell, run_cmd)) return 2;
 
   SDL_SetColors(font, pal, 0, 2);
   SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b));
@@ -450,12 +406,17 @@ int main (int argc, char * argv[])
 
   tmt_write(vt, "", 0);
   //tmt_write(vt, "\x1b[35mHello,\x1b[0m world!", 0);
+}
+
+
+void libretro_do_logic()
+{
+  bool quitting = false;
+  int cursor_blink_delay = 300; // 0 is disable
+  bool resizable = false;
 
   bool cursor_blink = false;
   uint32_t cursor_blink_at = SDL_GetTicks();
-  //int cursor_blink_delay = 0; //300;
-
-  bool quitting = false;
 
   const int max_sdl_delay = 100; // Max time between SDL polls
   const int sdl_boost_time = 600; // How long to boost SDL polls after SDL event
@@ -469,198 +430,192 @@ int main (int argc, char * argv[])
   uint32_t mouse_active_at = 0;
   bool mouse_active = false;
 
-  while (!quitting)
+  bool got_sdl_event = false;
+
+  SDL_Event event;
+  while (SDL_PollEvent(&event))
   {
-    bool got_sdl_event = false;
+    sdl_boost_start = SDL_GetTicks();
+    sdl_boosting = true;
 
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
+    if (event.type == SDL_QUIT)
     {
-      sdl_boost_start = SDL_GetTicks();
-      sdl_boosting = true;
+      quitting = true;
+      break;
+    }
+    else if (event.type == SDL_KEYDOWN)
+    {
+      handle_sdl_keypress(&event.key);
+    }
+    else if (event.type == SDL_ACTIVEEVENT)
+    {
+      mouse_active = false;
+      if (event.active.state == SDL_APPINPUTFOCUS && event.active.gain)
+      {
+        mouse_active_at = SDL_GetTicks() + mouse_active_delay;
+      }
+    }
+    else if (event.type == SDL_MOUSEMOTION)
+    {
+      if (mouse_active)
+      {
+        handle_mouse(event.motion.state, event.motion.x, event.motion.y, event.type);
+      }
+    }
+    else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP)
+    {
+      if (mouse_active)
+      {
+        handle_mouse(event.button.button, event.button.x, event.button.y, event.type);
+      }
+    }
+    else if (event.type == SDL_VIDEOEXPOSE)
+    {
+      SDL_Rect r = {0,0,screen->w,tweaky};
+      Uint32 color = SDL_MapRGB(screen->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b);
+      SDL_FillRect(screen, &r, color);
+      r.y = tweaky + term_h*FONT_H;
+      r.h = screen->h - r.y;
+      SDL_FillRect(screen, &r, color);
+      r.x = 0;
+      r.y = 0;
+      r.w = tweakx;
+      r.h = screen->h;
+      SDL_FillRect(screen, &r, color);
+      r.x = tweakx + term_w*FONT_W;
+      r.w = screen->w - r.x;
+      SDL_FillRect(screen, &r, color);
 
-      if (event.type == SDL_QUIT)
+      // Do a "resize" (to the same size) to convince libtmt to repaint everything
+      if (!tmt_resize(vt, term_h, term_w))
       {
-        quitting = true;
-        break;
+        // Bad things can happen in this case. :(
+        exit(1);
       }
-      else if (event.type == SDL_KEYDOWN)
-      {
-        handle_sdl_keypress(&event.key);
-      }
-      else if (event.type == SDL_ACTIVEEVENT)
-      {
-        mouse_active = false;
-        if (event.active.state == SDL_APPINPUTFOCUS && event.active.gain)
-        {
-          mouse_active_at = SDL_GetTicks() + mouse_active_delay;
-        }
-      }
-      else if (event.type == SDL_MOUSEMOTION)
-      {
-        if (mouse_active)
-        {
-          handle_mouse(event.motion.state, event.motion.x, event.motion.y, event.type);
-        }
-      }
-      else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP)
-      {
-        if (mouse_active)
-        {
-          handle_mouse(event.button.button, event.button.x, event.button.y, event.type);
-        }
-      }
-      else if (event.type == SDL_VIDEOEXPOSE)
-      {
-        SDL_Rect r = {0,0,screen->w,tweaky};
-        Uint32 color = SDL_MapRGB(screen->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b);
-        SDL_FillRect(screen, &r, color);
-        r.y = tweaky + term_h*FONT_H;
-        r.h = screen->h - r.y;
-        SDL_FillRect(screen, &r, color);
-        r.x = 0;
-        r.y = 0;
-        r.w = tweakx;
-        r.h = screen->h;
-        SDL_FillRect(screen, &r, color);
-        r.x = tweakx + term_w*FONT_W;
-        r.w = screen->w - r.x;
-        SDL_FillRect(screen, &r, color);
 
-        // Do a "resize" (to the same size) to convince libtmt to repaint everything
-        if (!tmt_resize(vt, term_h, term_w))
-        {
-          // Bad things can happen in this case. :(
-          exit(1);
-        }
-
-        SDL_UpdateRect(screen, 0, 0, 0, 0);
-      }
-      else if (event.type == SDL_VIDEORESIZE)
+      SDL_UpdateRect(screen, 0, 0, 0, 0);
+      printf("EXPOSE\n");
+    }
+    else if (event.type == SDL_VIDEORESIZE)
+    {
+      int nw = event.resize.w;
+      int nh = event.resize.h;
+      if (nw >= FONT_W * 2 && nh >= FONT_H * 2)
       {
-        int nw = event.resize.w;
-        int nh = event.resize.h;
-        if (nw >= FONT_W * 2 && nh >= FONT_H * 2)
+        SDL_Surface * ns = SDL_SetVideoMode(nw, nh, 32, resizable ? SDL_RESIZABLE : 0);
+        if (ns)
         {
-          SDL_Surface * ns = SDL_SetVideoMode(nw, nh, 32, resizable ? SDL_RESIZABLE : 0);
-          if (ns)
+          tweakx = (nw % FONT_W) / 2;
+          tweaky = (nh % FONT_H) / 2;
+          term_w = nw / FONT_W;
+          term_h = nh / FONT_H;
+
+          SDL_FillRect(ns, NULL, SDL_MapRGB(ns->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b));
+
+          screen = ns;
+
+          if (!tmt_resize(vt, term_h, term_w))
           {
-            tweakx = (nw % FONT_W) / 2;
-            tweaky = (nh % FONT_H) / 2;
-            term_w = nw / FONT_W;
-            term_h = nh / FONT_H;
-
-            SDL_FillRect(ns, NULL, SDL_MapRGB(ns->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b));
-
-            screen = ns;
-
-            if (!tmt_resize(vt, term_h, term_w))
-            {
-              // Bad things can happen in this case. :(
-              exit(1);
-            }
-
-            SDL_UpdateRect(screen, 0, 0, 0, 0);
-
-            struct winsize ws = {0};
-            ws.ws_row = term_h;
-            ws.ws_col = term_w;
-            ws.ws_xpixel = term_w * FONT_W;
-            ws.ws_ypixel = term_h * FONT_H;
-            ioctl(master_fd, TIOCSWINSZ, &ws);
+            // Bad things can happen in this case. :(
+            exit(1);
           }
+
+          SDL_UpdateRect(screen, 0, 0, 0, 0);
+
+          struct winsize ws = {0};
+          ws.ws_row = term_h;
+          ws.ws_col = term_w;
+          ws.ws_xpixel = term_w * FONT_W;
+          ws.ws_ypixel = term_h * FONT_H;
+          ioctl(master_fd, TIOCSWINSZ, &ws);
         }
-      }
-    }
-
-    if (quitting) break;
-
-    uint32_t now = SDL_GetTicks();
-    if (!mouse_active && (mouse_active_at < now))
-    {
-      mouse_active = true;
-    }
-    if (cursor_blink_delay && (now >= cursor_blink_at))
-    {
-      cursor_blink_at = now + cursor_blink_delay;
-      cursor_blink = !cursor_blink;
-      const TMTSCREEN * s = tmt_screen(vt);
-      const TMTPOINT * c = tmt_cursor(vt);
-      draw_cursor(s, c, cursor_blink);
-      //printf(cursor_blink?"blink\n":"BLINK\n");
-    }
-
-    int delay = max_sdl_delay;
-    if (sdl_boosting)
-    {
-      int boosting = SDL_GetTicks() - sdl_boost_start;
-      if (boosting > sdl_boost_time)
-      {
-        boosting = false;
-      }
-      else
-      {
-        delay = boosting << 2;
-        if (delay < 10) delay = 10;
-        else if (delay > max_sdl_delay) delay = max_sdl_delay;
-      }
-    }
-    if (cursor_blink_delay && (delay > (cursor_blink_at-now)))
-    {
-      delay = cursor_blink_at - now;
-    }
-
-    fd_set fd_in;
-    FD_ZERO(&fd_in);
-    FD_SET(master_fd, &fd_in);
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = delay * 1000;
-    //printf("%i\n", delay);
-
-    int rv = select(master_fd+1, &fd_in, NULL, NULL, &tv);
-    if (rv == 0)
-    {
-      // Timeout -- that's fine
-    }
-    else if (rv == -1)
-    {
-      if (errno == EINTR)
-      {
-        quitting = true;
-        break;
-      }
-      perror("select()");
-    }
-    else
-    {
-      static char buf[2048];
-      rv = read(master_fd, buf, sizeof(buf));
-      if (rv > 0)
-      {
-        tmt_write(vt, buf, rv);
-        #if 0
-        for (int i = 0; i < rv; i++)
-        {
-          char d[10] = {0};
-          char c = buf[i];
-          d[0] = c;
-          if (c == '\x1b') strcpy(d, "<ESC>");
-          write(2, d, strlen(d));
-        }
-        #endif
-      }
-      else
-      {
-        // Child terminated?
-        quitting = true;
       }
     }
   }
 
-  SDL_FreeSurface(font);
-  SDL_Quit();
-  return 0;
+  if (quitting) return;
+
+  uint32_t now = SDL_GetTicks();
+  if (!mouse_active && (mouse_active_at < now))
+  {
+    mouse_active = true;
+  }
+  if (cursor_blink_delay && (now >= cursor_blink_at))
+  {
+    cursor_blink_at = now + cursor_blink_delay;
+    cursor_blink = !cursor_blink;
+    const TMTSCREEN * s = tmt_screen(vt);
+    const TMTPOINT * c = tmt_cursor(vt);
+    draw_cursor(s, c, cursor_blink);
+    //printf(cursor_blink?"blink\n":"BLINK\n");
+  }
+
+  int delay = max_sdl_delay;
+  if (sdl_boosting)
+  {
+    int boosting = SDL_GetTicks() - sdl_boost_start;
+    if (boosting > sdl_boost_time)
+    {
+      boosting = false;
+    }
+    else
+    {
+      delay = boosting << 2;
+      if (delay < 10) delay = 10;
+      else if (delay > max_sdl_delay) delay = max_sdl_delay;
+    }
+  }
+  if (cursor_blink_delay && (delay > (cursor_blink_at-now)))
+  {
+    delay = cursor_blink_at - now;
+  }
+
+  fd_set fd_in;
+  FD_ZERO(&fd_in);
+  FD_SET(master_fd, &fd_in);
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = delay * 1000;
+  //printf("%i\n", delay);
+
+  int rv = select(master_fd+1, &fd_in, NULL, NULL, &tv);
+  if (rv == 0)
+  {
+    // Timeout -- that's fine
+  }
+  else if (rv == -1)
+  {
+    if (errno == EINTR)
+    {
+      quitting = true;
+      return;
+    }
+    perror("select()");
+  }
+  else
+  {
+    static char buf[2048];
+    rv = read(master_fd, buf, sizeof(buf));
+    if (rv > 0)
+    {
+      tmt_write(vt, buf, rv);
+      #if 0
+      for (int i = 0; i < rv; i++)
+      {
+        char d[10] = {0};
+        char c = buf[i];
+        d[0] = c;
+        if (c == '\x1b') strcpy(d, "<ESC>");
+        write(2, d, strlen(d));
+      }
+      #endif
+    }
+    else
+    {
+      // Child terminated?
+      quitting = true;
+    }
+  }
 }
 
 
