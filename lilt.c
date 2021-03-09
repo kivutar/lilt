@@ -186,12 +186,12 @@ static bool init_master (char * argv0, char * cshell, char ** run_cmd)
 
   char ** argv = calloc(6 + cmd_len, sizeof(char *));
   int a = 0;
-  argv[0] = "/bin/date";
-  // argv[1] = "-d";
-  // if (asprintf(&argv[2], "%ix%i", term_w, term_h) == -1) return false;
-  // argv[3] = "-s";
-  // if (asprintf(&argv[4], "%i,%i", slave_fd, master_fd) == -1) return false;
-  // for (int i = 0; i < cmd_len; i++) argv[5+i] = cmd[i];
+  argv[0] = argv0;
+  argv[1] = "-d";
+  if (asprintf(&argv[2], "%ix%i", term_w, term_h) == -1) return false;
+  argv[3] = "-s";
+  if (asprintf(&argv[4], "%i,%i", slave_fd, master_fd) == -1) return false;
+  for (int i = 0; i < cmd_len; i++) argv[5+i] = cmd[i];
 
   if (vfork() == 0)
   {
@@ -363,7 +363,7 @@ int libretro_init_extra()
   int opt_e_index = -1;
   char * title = DEFAULT_TITLE;
 
-  char ** run_cmd = NULL;
+  //char ** run_cmd = NULL;
   char * cshell = NULL;
 
   for (int i = 0; i < 16; i++)
@@ -398,7 +398,10 @@ int libretro_init_extra()
 
   if (!screen || !font || !vt) return 1;
 
-  if (!init_master("/bin/sh", cshell, run_cmd)) return 2;
+  char ** run_cmd = calloc(6, sizeof(char *));
+  run_cmd[0] = "/usr/bin/top";
+
+  if (!init_master("/Users/kivutar/lilt2/lilt", cshell, run_cmd)) return 2;
 
   SDL_SetColors(font, pal, 0, 2);
   SDL_FillRect(screen, NULL, SDL_MapRGB(screen->format, colors[DEF_BG].r, colors[DEF_BG].g, colors[DEF_BG].b));
